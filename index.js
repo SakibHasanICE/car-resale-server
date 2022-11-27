@@ -34,20 +34,46 @@ async function run() {
       const catData = await cursor.toArray();
       res.send(catData);
     });
+    const bookingsCollection = client.db("Product").collection("bookings");
+
+    app.get("/bookings", async (req, res) => {
+      const email = req.query.email;
+      const query = { userEmail: email };
+      const bookings = await bookingsCollection.find(query).toArray();
+      res.send(bookings);
+    });
+
+    app.post("/bookings", async (req, res) => {
+      const booking = req.body;
+      const query = {
+        name: booking.userName,
+        email: booking.userEmail,
+        item: booking.itemName,
+        resaleprice: booking.price,
+        number: booking.number,
+        destinaton: booking.location,
+      };
+
+      const result = await bookingsCollection.insertOne(booking);
+      res.send(result);
+    });
+    const usersCollection = client.db('Product').collection('users');
+    app.get("/users", async (req, res) => {
+      const query = {};
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+  } finally {
   }
-  finally {
-  }
-  
 }
 run().catch((err) => console.error(err));
 
 app.listen(port, () => {
   console.log(`simple node server running on port ${port}`);
 });
-// let query = {};
-// if(req.query.CatagoryName){
-//   query={
-//     CatagoryName: req.query.CatagoryName
-//   }
-// }
-// const cursor = CatagoryData.filter(query);
