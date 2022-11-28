@@ -4,6 +4,7 @@ const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 app.use(cors());
 app.use(express.json());
 
@@ -17,16 +18,47 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send("unauthorized access");
+  }
+  const token = authHeader.split(" ")[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
 async function run() {
   try {
     const ProductCatagories = client.db("Product").collection("Catagories");
+    const usersCollection = client.db("Product").collection("users");
+    const CatagoryData = client.db("Product").collection("Catagory");
+    const bookingsCollection = client.db("Product").collection("bookings");
+
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     app.get("/catagories", async (req, res) => {
       const query = {};
       const cursor = ProductCatagories.find(query);
       const catagories = await cursor.toArray();
       res.send(catagories);
     });
-    const CatagoryData = client.db("Product").collection("Catagory");
+
     app.get("/catagory/:CatagoryName", async (req, res) => {
       const CatagoryName = req.params.CatagoryName;
       const query = { CatagoryName: CatagoryName };
@@ -34,7 +66,6 @@ async function run() {
       const catData = await cursor.toArray();
       res.send(catData);
     });
-    const bookingsCollection = client.db("Product").collection("bookings");
 
     app.get("/bookings", async (req, res) => {
       const email = req.query.email;
@@ -57,7 +88,12 @@ async function run() {
       const result = await bookingsCollection.insertOne(booking);
       res.send(result);
     });
-    const usersCollection = client.db('Product').collection('users');
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isAdmin: user?.role === "admin" });
+    });
     app.get("/users", async (req, res) => {
       const query = {};
       const users = await usersCollection.find(query).toArray();
@@ -67,6 +103,23 @@ async function run() {
       const user = req.body;
       console.log(user);
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedAdmin = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedAdmin,
+        options
+      );
       res.send(result);
     });
   } finally {
