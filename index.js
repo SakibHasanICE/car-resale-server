@@ -40,6 +40,7 @@ async function run() {
     const usersCollection = client.db("Product").collection("users");
     const CatagoryData = client.db("Product").collection("Catagory");
     const bookingsCollection = client.db("Product").collection("bookings");
+    const productsCollection = client.db("Product").collection("myproducts");
 
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -108,6 +109,30 @@ async function run() {
       const result = await bookingsCollection.insertOne(booking);
       res.send(result);
     });
+
+    app.post("/myproducts", async (req, res) => {
+      const myproducts = req.body;
+      const query = {
+        name: myproducts.productName,
+        resalePrice: myproducts.resalePrice,
+        itemCondition: myproducts.itemCondition,
+        mobileNumber: myproducts.mobileNumber,
+        location: myproducts.location,
+        yearPurchase: myproducts.yearPurchase,
+        originalPrice: myproducts.originalPrice,
+        description: myproducts.description,
+      };
+
+      const result = await productsCollection.insertOne(myproducts);
+      res.send(result);
+    });
+    app.get("/myproducts", async (req, res) => {
+      const email = req.query.email;
+      const query = { userEmail: email };
+      const products = await productsCollection.find(query).toArray();
+      res.send(products);
+    });
+
     app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
