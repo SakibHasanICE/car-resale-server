@@ -51,6 +51,26 @@ async function run() {
       }
       next();
     };
+    const verifySeller = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== "seller") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+    const verifyBuyer = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== "buyer") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
 
     app.get("/catagories", async (req, res) => {
       const query = {};
@@ -94,6 +114,20 @@ async function run() {
       const user = await usersCollection.findOne(query);
       res.send({ isAdmin: user?.role === "admin" });
     });
+
+    app.get("/users/seller/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isSeller: user?.role === "seller" });
+    }); 
+    app.get("/users/buyer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isBuyer: user?.role === "buyer" });
+    }); 
+
     app.get("/users", async (req, res) => {
       const query = {};
       const users = await usersCollection.find(query).toArray();
@@ -118,6 +152,38 @@ async function run() {
       const result = await usersCollection.updateOne(
         filter,
         updatedAdmin,
+        options
+      );
+      res.send(result);
+    });
+    app.put("/users/seller/:id",verifyJWT, verifySeller, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedSeller= {
+        $set: {
+          role: "seller",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedSeller,
+        options
+      );
+      res.send(result);
+    });
+    app.put("/users/buyer/:id",verifyJWT, verifyBuyer, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedSeller= {
+        $set: {
+          role: "buyer",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedSeller,
         options
       );
       res.send(result);
